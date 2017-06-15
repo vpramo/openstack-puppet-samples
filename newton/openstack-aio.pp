@@ -4,9 +4,9 @@ $admin_token = '4b46b807-ab35-4a67-9f5f-34bbff2dd439'
 $metadata_proxy_shared_secret = '39c24deb-0d57-4184-81da-fc8ede37082e'
 $region_name = 'RegionOne'
 
-$cinder_lvm_loopback_device_size_mb = 2 * 1024
+$cinder_lvm_loopback_device_size_mb = 1 * 1024
 
-$interface = 'eth0'
+$interface = 'ens3'
 $ext_bridge_interface = 'br-ex'
 $dns_nameservers = ['8.8.8.8', '8.8.4.4']
 $private_subnet_cidr = '192.168.1.0/24'
@@ -57,7 +57,7 @@ class { 'apt': }
 apt::source { 'ubuntu-cloud':
   location          =>  'http://ubuntu-cloud.archive.canonical.com/ubuntu',
   repos             =>  'main',
-  release           =>  'trusty-updates/liberty',
+  release           =>  'xenial-updates/newton',
   include           =>  {'src' => false,},
 }
 ->
@@ -85,6 +85,7 @@ class { 'keystone':
   verbose               => True,
   package_ensure        => latest,
   client_package_ensure => latest,
+  service_name => 'httpd',
   catalog_type          => 'sql',
   admin_token           => $admin_token,
   database_connection   =>
@@ -97,6 +98,10 @@ class { 'keystone::endpoint':
   admin_url    => "http://${local_ip}:35357",
   internal_url => "http://${local_ip}:5000",
   region       => $region_name,
+}
+
+class { '::keystone::wsgi::apache':
+  ssl=> false
 }
 
 keystone_tenant { 'admin':
@@ -149,6 +154,7 @@ keystone_user_role { 'demo@demo':
   ensure => present,
   roles  => ['demo'],
 }
+
 
 ######## RabbitMQ
 
@@ -329,9 +335,6 @@ class { 'nova::cert':
   enabled => true,
 }
 
-class { 'nova::objectstore':
-  enabled => true,
-}
 
 class { 'nova::compute':
   enabled           => true,
@@ -396,11 +399,10 @@ class { '::neutron':
 }
 
 class { 'neutron::server':
-  auth_user           => 'neutron',
-  auth_password       => $admin_password,
-  auth_tenant         => 'services',
+  username          => 'neutron',
+  password       => $admin_password,
+  project_name         => 'services',
   auth_uri            => "http://${local_ip}:5000/v2.0",
-  identity_uri        => "http://${local_ip}:35357",
   database_connection =>
 "mysql://neutron:${admin_password}@${local_ip}/neutron?charset=utf8",
   sync_db             => true,
@@ -466,32 +468,22 @@ class { '::neutron::plugins::ml2':
 
 class { '::neutron::agents::l3':
   external_network_bridge  => 'br-ex',
-  router_delete_namespaces => true,
 }
 
 class { '::neutron::agents::metadata':
   enabled       => true,
   shared_secret => $metadata_proxy_shared_secret,
-  auth_user     => 'neutron',
-  auth_password => $admin_password,
-  auth_tenant   => 'services',
-  auth_url      => "http://${local_ip}:35357/v2.0",
-  auth_region   => $region_name,
   metadata_ip   => $local_ip,
 }
 
 class { '::neutron::agents::dhcp':
   enabled                => true,
-  dhcp_delete_namespaces => true,
 }
 
 class { '::neutron::agents::lbaas':
   enabled => true,
 }
 
-class { '::neutron::agents::vpnaas':
-  enabled => true,
-}
 
 class { '::neutron::agents::metering':
   enabled => true,
@@ -545,15 +537,6 @@ neutron_router_interface { 'demo_router:private_subnet':
 
 ######## Horizon
 
-package { 'apache2':
-  ensure => latest,
-}
-
-service { 'apache2':
-    ensure  => running,
-    enable  => true,
-    require => Package['apache2'],
-}
 
 class { 'memcached':
   listen_ip => '127.0.0.1',
@@ -561,39 +544,14 @@ class { 'memcached':
   udp_port  => '11211',
 }
 ->
-package { 'openstack-dashboard':
-  ensure => latest,
-}
-->
-file_line { 'dashboard_openstack_host':
-  ensure => present,
-  path   => '/etc/openstack-dashboard/local_settings.py',
-  line   => "OPENSTACK_HOST = '${local_ip}'",
-  match  => '^OPENSTACK_HOST\s=.*',
-}
-->
-file_line { 'dashboard_default_role':
-  ensure => present,
-  path   => '/etc/openstack-dashboard/local_settings.py',
-  line   => 'OPENSTACK_KEYSTONE_DEFAULT_ROLE = \'user\'',
-  match  => '^OPENSTACK_KEYSTONE_DEFAULT_ROLE\s=.*',
-}
-->
-exec { 'get-openstack-dashboard-theme':
-
-  command => 'wget -q https://github.com/cloudbase/horizon-cloudbase/releases/\
-download/v1.1/openstack-dashboard-cloudbase-theme_1.1-1.deb -O \
-/tmp/openstack-dashboard-cloudbase-theme_1.1-1.deb',
-  unless  => [ 'test -f /tmp/openstack-dashboard-cloudbase-theme_1.1-1.deb' ],
-  path    => [ '/usr/bin/', '/bin' ],
-}
-->
-package { 'openstack-dashboard-cloudbase-theme':
-  ensure   => latest,
-  provider => dpkg,
-  source   => '/tmp/openstack-dashboard-cloudbase-theme_1.1-1.deb'
-}
-~> Service['apache2']
+class { '::horizon':
+    cache_server_ip         => '127.0.0.1',
+    cache_server_port       => '11211',
+    secret_key              => 'Chang3M3',
+    keystone_url            => 'http://${local_ip}:5000/v2.0',
+    neutron_options         => $neutron_options,
+    allowed_hosts           => '*'
+  }
 
 ######## Cinder
 
@@ -724,3 +682,4 @@ export OS_TENANT_NAME=demo
 export OS_VOLUME_API_VERSION=2
 ",
 }
+
