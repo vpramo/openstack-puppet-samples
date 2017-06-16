@@ -284,7 +284,7 @@ class { 'nova':
   database_connection =>
 "mysql://nova:${admin_password}@${local_ip}/nova?charset=utf8",
   api_database_connection => 
-  "mysql://nova_api:${admin_password}@${local_ip}/nova?charset=utf8",
+  "mysql://nova_api:${admin_password}@${local_ip}/nova_api?charset=utf8",
   rabbit_userid       => 'openstack',
   rabbit_password     => $admin_password,
   image_service       => 'nova.image.glance.GlanceImageService',
