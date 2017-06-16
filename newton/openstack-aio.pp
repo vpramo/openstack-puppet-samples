@@ -283,6 +283,8 @@ keystone_user_role { 'nova@services':
 class { 'nova':
   database_connection =>
 "mysql://nova:${admin_password}@${local_ip}/nova?charset=utf8",
+  api_database_connection => 
+  "mysql://nova_api:${admin_password}@${local_ip}/nova?charset=utf8",
   rabbit_userid       => 'openstack',
   rabbit_password     => $admin_password,
   image_service       => 'nova.image.glance.GlanceImageService',
@@ -292,6 +294,11 @@ class { 'nova':
 }
 
 class { 'nova::db::mysql':
+  password      => $admin_password,
+  allowed_hosts => '%',
+}
+
+class { 'nova::db::mysql_api':
   password      => $admin_password,
   allowed_hosts => '%',
 }
@@ -548,8 +555,8 @@ class { '::horizon':
     cache_server_ip         => '127.0.0.1',
     cache_server_port       => '11211',
     secret_key              => 'Chang3M3',
-    keystone_url            => 'http://${local_ip}:5000/v2.0',
-    neutron_options         => $neutron_options,
+    keystone_url            => "http://${local_ip}:5000/v3",
+ 
     allowed_hosts           => '*'
   }
 
@@ -619,7 +626,7 @@ class { 'cinder::db::mysql':
 
 class { 'cinder::scheduler':
   enabled          => true,
-  scheduler_driver => 'cinder.scheduler.simple.SimpleScheduler',
+
 }
 
 class { 'cinder::volume':
