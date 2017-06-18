@@ -10,7 +10,7 @@ $interface = 'ens3'
 $ext_bridge_interface = 'br-ex'
 $dns_nameservers = ['8.8.8.8', '8.8.4.4']
 $private_subnet_cidr = '192.168.1.0/24'
-$public_subnet_cidr = '10.0.2.0/16'
+$public_subnet_cidr = '10.0.0.0/16'
 $public_subnet_gateway = '10.0.1.1'
 $public_subnet_allocation_pools = ['start=10.0.2.30,end=10.0.2.50']
 
@@ -37,7 +37,7 @@ $cinder_loopback_base_dir = '/var/lib/cinder'
 $cinder_loopback_device_file_name = "${cinder_loopback_base_dir}/\
 cinder-volumes.img"
 $cinder_lvm_vg = 'cinder-volumes'
-$workers = $::processorcount
+$api_workers = 1
 
 if !$local_ip {
   fail('$local_ip variable must be set')
@@ -288,7 +288,7 @@ class { 'nova':
   rabbit_userid       => 'openstack',
   rabbit_password     => $admin_password,
   image_service       => 'nova.image.glance.GlanceImageService',
-  glance_api_servers  => "${local_ip}:9292",
+  glance_api_servers  => "http://${local_ip}:9292",
   verbose             => true,
   rabbit_host         => $local_ip,
 }
@@ -423,8 +423,7 @@ class { 'neutron::db::mysql':
 }
 
 class { '::neutron::server::notifications':
-  nova_admin_tenant_name => 'services',
-  nova_admin_password    => $admin_password,
+  password    => $admin_password,
 }
 
 class { '::neutron::agents::ml2::ovs':
@@ -485,6 +484,9 @@ class { '::neutron::agents::metadata':
 
 class { '::neutron::agents::dhcp':
   enabled                => true,
+  enable_isolated_metadata => true,
+  enable_force_metadata    => true,
+  enable_metadata_network  => true,
 }
 
 class { '::neutron::agents::lbaas':
@@ -505,7 +507,7 @@ neutron_network { 'public':
   shared                    => true,
 }
 
-neutron_subnet { 'public_subnet':
+neutron_subnet { '10.0.0.0/16 ':
   ensure           => present,
   cidr             => $public_subnet_cidr,
   network_name     => 'public',
@@ -689,4 +691,3 @@ export OS_TENANT_NAME=demo
 export OS_VOLUME_API_VERSION=2
 ",
 }
-
