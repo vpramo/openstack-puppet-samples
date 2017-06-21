@@ -14,7 +14,7 @@ mod 'adrianthebo/filemapper',
 
 mod 'puppetlabs/haproxy',
   :git => "#{base_url}/puppetlabs/puppetlabs-haproxy",
-  :ref => '1.0.0'
+  :ref => '1.4.0'
 
 mod 'puppetlabs/inifile',
   :git => "#{base_url}/puppetlabs/puppetlabs-inifile",
