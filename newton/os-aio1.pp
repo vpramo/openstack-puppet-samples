@@ -6,7 +6,7 @@ $lb_router1=<IP3>
 
 $lb_ip=$lb_router1
 $mysql_ip=$os_aio1
-$rabbit_ip=$os_aio2
+$rabbit_ip=$os_aio1
 
 
 
