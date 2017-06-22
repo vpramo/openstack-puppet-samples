@@ -6,7 +6,7 @@ $lb_router1=<IP3>
 
 $lb_ip=$lb_router1
 $mysql_ip=$os_aio1
-$rabbit_ip=$os_aio2
+$rabbit_ip=$os_aio1
 
 
 
@@ -26,8 +26,8 @@ $nova_backends=[$os_aio1,$os_aio2]
 $neutron_backends=[$os_aio1,$os_aio2]
 $glance_backends=[$os_aio2]
 $horizon_backends=[$os_aio1,$os_aio2]
-$server_names=["os_aio1","os_aio2"]
-$glance_names=["os_aio2"]
+$server_names=["test-2","test-3"]
+$glance_names=["test-3"]
 
 ##### Generate GW & IP from Interface #####
 
