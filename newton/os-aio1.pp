@@ -334,6 +334,10 @@ class { 'nova::compute::libvirt':
 ######################################################################
 
 ########################Neutron###############################
+
+package{'neutron-lbaasv2-agent':
+}
+
 keystone_service { 'neutron':
   ensure      => present,
   type        => 'network',
@@ -368,7 +372,7 @@ class { '::neutron':
   verbose               => true,
   debug                 => false,
   core_plugin           => 'ml2',
-  service_plugins       => ['router', 'metering','lbaas'],
+  service_plugins       => ['router', 'metering','neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
   allow_overlapping_ips => true,
 }
 
