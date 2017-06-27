@@ -77,6 +77,7 @@ apt::source { 'ubuntu-cloud':
 ->
 exec { 'apt-update':
     command => '/usr/bin/apt-get update'
+     }
 
 #########################################################################
 
@@ -110,8 +111,8 @@ haproxy::listen { 'nova-metadata':
 
 
  
-haproxy::balancermember { 'nova-api':
-  listening_service => 'nova-api',
+haproxy::balancermember { 'nova-metadata':
+  listening_service => 'nova-metadata',
   ports             => '8775',
   server_names      => $server_names,
   ipaddresses       => $nova_backends,
@@ -130,7 +131,7 @@ haproxy::listen { 'nova-vnc':
 
  
 haproxy::balancermember { 'nova-vnc':
-  listening_service => 'nova-api',
+  listening_service => 'nova-vnc',
   ports             => '6080',
   server_names      => $server_names,
   ipaddresses       => $nova_backends,
@@ -188,7 +189,7 @@ haproxy::balancermember { 'glance-api':
 ##################################Horizon API HAPROXY #############################
 
 
-haproxy::listen { 'gorizon-api':
+haproxy::listen { 'horizon-api':
     collect_exported => false,
     ipaddress        => $::ipaddress,
     ports            => '80',
@@ -207,6 +208,40 @@ haproxy::balancermember { 'horizon-api':
 #########################################################################
 
 
+
+###############################Kyestone API ###########################################
+haproxy::listen { 'keystone-main':
+    collect_exported => false,
+    ipaddress        => $::ipaddress,
+    ports            => '5000',
+  }
+
+
+ 
+haproxy::balancermember { 'keystone-main':
+  listening_service => 'keystone-main',
+  ports             => '5000',
+  server_names      => $server_names,
+  ipaddresses       => $horizon_backends,
+  options           => 'check',
+}
+
+haproxy::listen { 'keystone-back':
+    collect_exported => false,
+    ipaddress        => $::ipaddress,
+    ports            => '35357',
+  }
+
+
+ 
+haproxy::balancermember { 'keystone-back':
+  listening_service => 'keystone-back',
+  ports             => '35357',
+  server_names      => $server_names,
+  ipaddresses       => $horizon_backends,
+  options           => 'check',
+}
+
 ############################### Neutron Support Services ################################
 
 
@@ -219,7 +254,7 @@ class { '::neutron':
   verbose               => true,
   debug                 => false,
   core_plugin           => 'ml2',
-  service_plugins       => ['router', 'metering'],
+  service_plugins       => ['router', 'metering', 'neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
   allow_overlapping_ips => true,
 }
 
@@ -264,6 +299,8 @@ class { '::neutron::agents::dhcp':
 
 class { '::neutron::agents::lbaas':
   enabled => true,
+  manage_haproxy_package=> false,
+  interface_driver => 'openvswitch',
 }
 
 

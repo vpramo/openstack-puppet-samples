@@ -78,7 +78,7 @@ apt::source { 'ubuntu-cloud':
 ->
 exec { 'apt-update':
     command => '/usr/bin/apt-get update'
-
+     }
 #########################################################################
 
 
@@ -122,7 +122,7 @@ class { 'nova':
   rabbit_userid       => 'openstack',
   rabbit_password     => $admin_password,
   image_service       => 'nova.image.glance.GlanceImageService',
-  glance_api_servers  => "http://${mysql_ip}:9292",
+  glance_api_servers  => "http://${lb_ip}:9292",
   verbose             => true,
   rabbit_host         => $rabbit_ip,
 }
@@ -203,6 +203,8 @@ class { 'nova::compute::libvirt':
 ######################################################################
 
 ########################Neutron###############################
+package{'neutron-lbaasv2-agent':
+}
 
 
 class { '::neutron':
@@ -214,7 +216,7 @@ class { '::neutron':
   verbose               => true,
   debug                 => false,
   core_plugin           => 'ml2',
-  service_plugins       => ['router', 'metering'],
+  service_plugins       => ['router', 'metering','neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
   allow_overlapping_ips => true,
 }
 
@@ -228,6 +230,10 @@ class { 'neutron::server':
   sync_db             => true,
   api_workers         => $api_workers,
   rpc_workers         => $api_workers,
+  service_providers => [
+       'LOADBALANCERV2:Haproxy:neutron_lbaas.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default',
+
+    ]
 }
 
 class { 'neutron::db::mysql':
@@ -243,7 +249,7 @@ class { '::neutron::agents::ml2::ovs':
   local_ip         => $local_ip,
   enable_tunneling => true,
   tunnel_types     => ['vxlan'],
- ,
+ 
 }
 
 
@@ -309,6 +315,12 @@ class { 'glance::registry':
 }
 
 class { 'glance::backend::file': }
+
+class { 'glance::db::mysql':
+  password      => $admin_password,
+  allowed_hosts => '%',
+ 
+}
 
 class { 'glance::db::mysql':
   password      => $admin_password,

@@ -77,7 +77,7 @@ apt::source { 'ubuntu-cloud':
 ->
 exec { 'apt-update':
     command => '/usr/bin/apt-get update'
-
+    }
 #########################################################################
 
 
@@ -124,12 +124,19 @@ rabbitmq_user_permissions { 'openstack@/':
 
 ######################################################################
 
+########################### Glance DB ###############################
 
+class { 'glance::db::mysql':
+  password      => $admin_password,
+  allowed_hosts => '%',
+ 
+}
 ############################ Keystone ###############################
 
 class { 'keystone::db::mysql':
   password      => $admin_password,
   allowed_hosts => '%',
+
 }
 
 class { 'keystone':
@@ -244,7 +251,7 @@ class { 'nova':
   rabbit_userid       => 'openstack',
   rabbit_password     => $admin_password,
   image_service       => 'nova.image.glance.GlanceImageService',
-  glance_api_servers  => "http://${mysql_ip}:9292",
+  glance_api_servers  => "http://${lb_ip}:9292",
   verbose             => true,
   rabbit_host         => $rabbit_ip,
 }
@@ -252,11 +259,13 @@ class { 'nova':
 class { 'nova::db::mysql':
   password      => $admin_password,
   allowed_hosts => '%',
+  
 }
 
 class { 'nova::db::mysql_api':
   password      => $admin_password,
   allowed_hosts => '%',
+ 
 }
 
 class { 'nova::api':
@@ -359,7 +368,7 @@ class { '::neutron':
   verbose               => true,
   debug                 => false,
   core_plugin           => 'ml2',
-  service_plugins       => ['router', 'metering'],
+  service_plugins       => ['router', 'metering','lbaas'],
   allow_overlapping_ips => true,
 }
 
@@ -373,11 +382,16 @@ class { 'neutron::server':
   sync_db             => true,
   api_workers         => $api_workers,
   rpc_workers         => $api_workers,
+  service_providers => [
+       'LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver',
+
+    ]
 }
 
 class { 'neutron::db::mysql':
   password      => $admin_password,
   allowed_hosts => '%',
+ 
 }
 
 class { '::neutron::server::notifications':
