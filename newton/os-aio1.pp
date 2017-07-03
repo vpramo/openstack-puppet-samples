@@ -9,6 +9,11 @@ $mysql_ip=$os_aio1
 $rabbit_ip=$os_aio1
 
 
+$neutron_options= {
+                    'enable_lb' => 'True',
+                    'enable_quotas' => 'True',
+                    'enable_security_group' => 'True',
+                  }
 
 $api_workers = 1
 
@@ -372,7 +377,7 @@ class { '::neutron':
   verbose               => true,
   debug                 => false,
   core_plugin           => 'ml2',
-  service_plugins       => ['router', 'metering','neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
+  service_plugins       => ['router', 'neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
   allow_overlapping_ips => true,
 }
 
@@ -444,9 +449,22 @@ class { '::horizon':
     cache_server_port       => '11211',
     secret_key              => 'Chang3M3',
     keystone_url            => "http://${lb_ip}:5000/v3",
- 
+    neutron_options         => $neutron_options,
     allowed_hosts           => '*'
-  }
+  }->
+  
+exec{ 'get lbaas dashboard':
+    command => 'git clone https://github.com/openstack/neutron-lbaas-dashboard -b mitaka",
+    unless => ' test -d neutron-lbaas-dashboard',
+    } ->
+
+exec { 'Install Dashboard':
+     command => 'python setup.py install',
+     cwd => "/root/neutron-lbaas-dashboard"
+     } 
+     
+     
+
   
 ###########################################################################
 
@@ -478,4 +496,79 @@ export OS_VOLUME_API_VERSION=2
 
 ##########################################################################
 
+######################## Glance Source ###############################
+#### This is temp for now ######
+
+class { 'glance::api':
+  verbose             => true,
+  keystone_tenant     => 'services',
+  keystone_user       => 'glance',
+  keystone_password   => $admin_password,
+  database_connection => "mysql://glance:${admin_password}@${mysql_ip}/glance",
+  workers             => $api_workers,
+}
+
+class { 'glance::registry':
+  verbose             => true,
+  keystone_tenant     => 'services',
+  keystone_user       => 'glance',
+  keystone_password   => $admin_password,
+  database_connection => "mysql://glance:${admin_password}@${mysql_ip}/glance",
+  # Added after kilo
+  #workers             => $api_workers,
+}
+
+class { 'glance::backend::file': }
+
+class { 'glance::db::mysql':
+  password      => $admin_password,
+  allowed_hosts => '%',
+ 
+}
+
+class { 'glance::db::mysql':
+  password      => $admin_password,
+  allowed_hosts => '%',
+}
+
+class { 'glance::keystone::auth':
+  password     => $admin_password,
+  email        => 'glance@example.com',
+  public_url   => "http://${lb_ip}:9292",
+  admin_url    => "http://${lb_ip}:9292",
+  internal_url => "http://${lb_ip}:9292",
+  region       => $region_name,
+}
+
+class { 'glance::notify::rabbitmq':
+  rabbit_password => $admin_password,
+  rabbit_userid   => 'openstack',
+  rabbit_hosts    => ["${rabbit_ip}:5672"],
+  rabbit_use_ssl  => false,
+}
+
+keystone_user_role { 'glance@services':
+  ensure => present,
+  roles  => ['admin'],
+}
+
+exec { 'retrieve_cirros_image':
+  command => 'wget -q http://download.cirros-cloud.net/0.3.4/\
+cirros-0.3.4-x86_64-disk.img -O /tmp/cirros-0.3.4-x86_64-disk.img',
+  unless  => [ "glance --os-username admin --os-tenant-name admin \
+--os-password ${admin_password} --os-auth-url http://${local_ip}:35357/v2.0 \
+image-show cirros-0.3.4-x86_64" ],
+  path    => [ '/usr/bin/', '/bin' ],
+  require => [ Class['glance::api'], Class['glance::registry'] ]
+}
+->
+exec { 'add_cirros_image':
+  command => "glance --os-username admin --os-tenant-name admin --os-password \
+${admin_password} --os-auth-url http://${local_ip}:35357/v2.0 image-create \
+--name cirros-0.3.4-x86_64 --file /tmp/cirros-0.3.4-x86_64-disk.img \
+--disk-format qcow2 --container-format bare --is-public True",
+  # Avoid dependency warning
+  onlyif  => [ 'test -f /tmp/cirros-0.3.4-x86_64-disk.img' ],
+  path    => [ '/usr/bin/', '/bin' ],
+}
 

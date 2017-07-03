@@ -22,12 +22,12 @@ $region_name = 'RegionOne'
 $interface = 'ens3'
 $ext_bridge_interface = 'br-ex'
 
-$nova_backends=[$os_aio1,$os_aio2]
-$neutron_backends=[$os_aio1,$os_aio2]
-$glance_backends=[$os_aio2]
-$horizon_backends=[$os_aio1,$os_aio2]
-$server_names=["test-2","test-3"]
-$glance_names=["test-3"]
+$nova_backends=[$os_aio1]
+$neutron_backends=[$os_aio1]
+$glance_backends=[$os_aio1]
+$horizon_backends=[$os_aio1]
+$server_names=["test-2"]
+$glance_names=["test-2"]
 
 ##### Generate GW & IP from Interface #####
 
@@ -254,7 +254,7 @@ class { '::neutron':
   verbose               => true,
   debug                 => false,
   core_plugin           => 'ml2',
-  service_plugins       => ['router', 'metering', 'neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
+  service_plugins       => ['router',  'neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
   allow_overlapping_ips => true,
 }
 
@@ -304,9 +304,6 @@ class { '::neutron::agents::lbaas':
 }
 
 
-class { '::neutron::agents::metering':
-  enabled => true,
-}
 
 class { '::neutron::plugins::ml2':
   type_drivers         => ['flat', 'vxlan'],

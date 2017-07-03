@@ -29,7 +29,11 @@ $horizon_backends=[$os_aio1,$os_aio2]
 $server_names=["os_aio1","os_aio2"]
 $glance_names=["os_aio2"]
 
-
+$neutron_options= {
+                    'enable_lb' => 'True',
+                    'enable_quotas' => 'True',
+                    'enable_security_group' => 'True',
+                  }
 
 ##### Generate GW & IP from Interface #####
 
@@ -216,7 +220,7 @@ class { '::neutron':
   verbose               => true,
   debug                 => false,
   core_plugin           => 'ml2',
-  service_plugins       => ['router', 'metering','neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
+  service_plugins       => ['router', 'neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2'],
   allow_overlapping_ips => true,
 }
 
@@ -287,9 +291,19 @@ class { '::horizon':
     cache_server_port       => '11211',
     secret_key              => 'Chang3M3',
     keystone_url            => "http://${lb_ip}:5000/v3",
- 
+    neutron_options         => $neutron_options,
     allowed_hosts           => '*'
-  }
+  } ->
+  
+exec{ 'get lbaas dashboard':
+    command => 'git clone https://github.com/openstack/neutron-lbaas-dashboard -b mitaka",
+    unless => ' test -d neutron-lbaas-dashboard',
+    } ->
+
+exec { 'Install Dashboard':
+     command => 'python setup.py install',
+     cwd => "/root/neutron-lbaas-dashboard"
+     } 
   
 ###########################################################################
 
