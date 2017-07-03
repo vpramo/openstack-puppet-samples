@@ -131,11 +131,11 @@ rabbitmq_user_permissions { 'openstack@/':
 
 ########################### Glance DB ###############################
 
-class { 'glance::db::mysql':
-  password      => $admin_password,
-  allowed_hosts => '%',
+#class { 'glance::db::mysql':
+#  password      => $admin_password,
+#  allowed_hosts => '%',
  
-}
+#}
 ############################ Keystone ###############################
 
 class { 'keystone::db::mysql':
@@ -341,6 +341,7 @@ class { 'nova::compute::libvirt':
 ########################Neutron###############################
 
 package{'neutron-lbaasv2-agent':
+   ensure=> present
 }
 
 keystone_service { 'neutron':
@@ -392,7 +393,7 @@ class { 'neutron::server':
   api_workers         => $api_workers,
   rpc_workers         => $api_workers,
   service_providers => [
-       'LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver',
+       'LOADBALANCERV2:Haproxy:neutron_lbaas.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default',
 
     ]
 }
@@ -451,18 +452,7 @@ class { '::horizon':
     keystone_url            => "http://${lb_ip}:5000/v3",
     neutron_options         => $neutron_options,
     allowed_hosts           => '*'
-  }->
-  
-exec{ 'get lbaas dashboard':
-    command => 'git clone https://github.com/openstack/neutron-lbaas-dashboard -b mitaka",
-    unless => ' test -d neutron-lbaas-dashboard',
-    } ->
-
-exec { 'Install Dashboard':
-     command => 'python setup.py install',
-     cwd => "/root/neutron-lbaas-dashboard"
-     } 
-     
+  }
      
 
   
@@ -520,11 +510,7 @@ class { 'glance::registry':
 
 class { 'glance::backend::file': }
 
-class { 'glance::db::mysql':
-  password      => $admin_password,
-  allowed_hosts => '%',
- 
-}
+
 
 class { 'glance::db::mysql':
   password      => $admin_password,

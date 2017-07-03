@@ -208,6 +208,7 @@ class { 'nova::compute::libvirt':
 
 ########################Neutron###############################
 package{'neutron-lbaasv2-agent':
+   ensure=> present
 }
 
 
@@ -293,17 +294,10 @@ class { '::horizon':
     keystone_url            => "http://${lb_ip}:5000/v3",
     neutron_options         => $neutron_options,
     allowed_hosts           => '*'
-  } ->
+  } 
   
-exec{ 'get lbaas dashboard':
-    command => 'git clone https://github.com/openstack/neutron-lbaas-dashboard -b mitaka",
-    unless => ' test -d neutron-lbaas-dashboard',
-    } ->
 
-exec { 'Install Dashboard':
-     command => 'python setup.py install',
-     cwd => "/root/neutron-lbaas-dashboard"
-     } 
+
   
 ###########################################################################
 
@@ -330,11 +324,6 @@ class { 'glance::registry':
 
 class { 'glance::backend::file': }
 
-class { 'glance::db::mysql':
-  password      => $admin_password,
-  allowed_hosts => '%',
- 
-}
 
 class { 'glance::db::mysql':
   password      => $admin_password,
